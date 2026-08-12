@@ -1,0 +1,169 @@
+{% extends 'base.html' %}
+
+{% block title %}SOC Dashboard — FORENSIX{% endblock %}
+{% block header_title %}SOC Forensic Command Center{% endblock %}
+
+{% block content %}
+<!-- Metric Cards -->
+<div class="row g-3 mb-4">
+    <div class="col-md-4 col-xl-2">
+        <div class="card card-soc stat-card p-3">
+            <div class="stat-label mb-1">Total Cases</div>
+            <div class="stat-number">{{ total_cases }}</div>
+        </div>
+    </div>
+    <div class="col-md-4 col-xl-2">
+        <div class="card card-soc stat-card p-3">
+            <div class="stat-label mb-1">Total Evidence</div>
+            <div class="stat-number">{{ total_evidence }}</div>
+        </div>
+    </div>
+    <div class="col-md-4 col-xl-2">
+        <div class="card card-soc stat-card p-3">
+            <div class="stat-label mb-1">Artifacts Parsed</div>
+            <div class="stat-number text-info">{{ total_artifacts }}</div>
+        </div>
+    </div>
+    <div class="col-md-4 col-xl-2">
+        <div class="card card-soc stat-card stat-warning p-3">
+            <div class="stat-label mb-1">Suspicious Findings</div>
+            <div class="stat-number text-warning">{{ total_findings }}</div>
+        </div>
+    </div>
+    <div class="col-md-4 col-xl-2">
+        <div class="card card-soc stat-card stat-critical p-3">
+            <div class="stat-label mb-1">Critical Findings</div>
+            <div class="stat-number text-danger">{{ critical_findings }}</div>
+        </div>
+    </div>
+    <div class="col-md-4 col-xl-2">
+        <div class="card card-soc stat-card stat-critical p-3">
+            <div class="stat-label mb-1">Integrity Failures</div>
+            <div class="stat-number {% if integrity_failures > 0 %}text-danger{% else %}text-success{% endif %}">{{ integrity_failures }}</div>
+        </div>
+    </div>
+</div>
+
+<!-- SOC Charts Row -->
+<div class="row g-3 mb-4">
+    <div class="col-lg-4">
+        <div class="card card-soc h-100">
+            <div class="card-soc-header">
+                <span><i class="bi bi-pie-chart-fill text-info me-2"></i>Evidence Distribution</span>
+            </div>
+            <div class="card-body" style="min-height: 250px;">
+                <canvas id="chart-evidence-types"></canvas>
+            </div>
+        </div>
+    </div>
+    <div class="col-lg-4">
+        <div class="card card-soc h-100">
+            <div class="card-soc-header">
+                <span><i class="bi bi-bar-chart-fill text-warning me-2"></i>Findings by Severity</span>
+            </div>
+            <div class="card-body" style="min-height: 250px;">
+                <canvas id="chart-findings-severity"></canvas>
+            </div>
+        </div>
+    </div>
+    <div class="col-lg-4">
+        <div class="card card-soc h-100">
+            <div class="card-soc-header">
+                <span><i class="bi bi-diagram-3-fill text-success me-2"></i>Artifact Types</span>
+            </div>
+            <div class="card-body" style="min-height: 250px;">
+                <canvas id="chart-artifact-dist"></canvas>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Recent Tables Row -->
+<div class="row g-3">
+    <!-- Recent Findings Table -->
+    <div class="col-lg-7">
+        <div class="card card-soc">
+            <div class="card-soc-header">
+                <span><i class="bi bi-shield-exclamation text-danger me-2"></i>Recent Suspicious Activity Findings</span>
+                <a href="{{ url_for('findings.list_findings') }}" class="btn btn-outline-secondary btn-sm" style="font-size: 0.75rem;">View All</a>
+            </div>
+            <div class="card-body p-0">
+                <div class="table-responsive">
+                    <table class="table table-soc mb-0">
+                        <thead>
+                            <tr>
+                                <th>Finding ID</th>
+                                <th>Severity</th>
+                                <th>Rule Name</th>
+                                <th>Category</th>
+                                <th>Timestamp</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% for f in recent_findings %}
+                                <tr>
+                                    <td><span class="fw-bold text-info">{{ f.finding_number }}</span></td>
+                                    <td>
+                                        <span class="badge badge-{{ f.severity.lower() }}">{{ f.severity }}</span>
+                                    </td>
+                                    <td class="text-truncate" style="max-width: 220px;">{{ f.rule_name }}</td>
+                                    <td><span class="text-muted" style="font-size: 0.8rem;">{{ f.category }}</span></td>
+                                    <td><small class="text-muted">{{ f.timestamp.strftime('%Y-%m-%d %H:%M') if f.timestamp else 'N/A' }}</small></td>
+                                </tr>
+                            {% else %}
+                                <tr>
+                                    <td colspan="5" class="text-center text-muted py-4">No findings recorded. Generate a demo case or analyze evidence.</td>
+                                </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Active Forensic Cases -->
+    <div class="col-lg-5">
+        <div class="card card-soc">
+            <div class="card-soc-header">
+                <span><i class="bi bi-folder-check text-info me-2"></i>Active Forensic Cases</span>
+                <a href="{{ url_for('cases.list_cases') }}" class="btn btn-outline-secondary btn-sm" style="font-size: 0.75rem;">Manage Cases</a>
+            </div>
+            <div class="card-body p-0">
+                <div class="table-responsive">
+                    <table class="table table-soc mb-0">
+                        <thead>
+                            <tr>
+                                <th>Case ID</th>
+                                <th>Case Name</th>
+                                <th>Status</th>
+                                <th>Evidence</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% for c in recent_cases %}
+                                <tr>
+                                    <td><a href="{{ url_for('cases.case_detail', id=c.id) }}" class="text-info fw-bold text-decoration-none">{{ c.case_number }}</a></td>
+                                    <td class="text-truncate" style="max-width: 180px;">{{ c.name }}</td>
+                                    <td>
+                                        <span class="badge bg-secondary bg-opacity-50 text-light">{{ c.status }}</span>
+                                    </td>
+                                    <td><span class="badge bg-info bg-opacity-25 text-info">{{ c.evidence_items|length }} items</span></td>
+                                </tr>
+                            {% else %}
+                                <tr>
+                                    <td colspan="4" class="text-center text-muted py-4">No cases registered yet.</td>
+                                </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script src="{{ url_for('static', filename='js/dashboard.js') }}"></script>
+{% endblock %}

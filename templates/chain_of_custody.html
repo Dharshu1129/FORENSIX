@@ -1,0 +1,81 @@
+{% extends 'base.html' %}
+
+{% block title %}Chain of Custody — FORENSIX{% endblock %}
+{% block header_title %}Digital Chain of Custody Audit Trail{% endblock %}
+
+{% block content %}
+<div class="d-flex justify-content-between align-items-center mb-4">
+    <div>
+        <h4 class="fw-bold mb-1">Chain of Custody Audit Logs</h4>
+        <p class="text-muted small mb-0">Immutable digital audit record tracking evidence ingestion, hash verification, analysis, and report generation.</p>
+    </div>
+</div>
+
+<!-- Filter Bar -->
+<div class="card card-soc mb-4">
+    <div class="card-body p-3">
+        <form method="GET" action="{{ url_for('audit.chain_of_custody') }}" class="row g-3 align-items-center">
+            <div class="col-md-6">
+                <select name="case_id" class="form-select form-select-soc" onchange="this.form.submit()">
+                    <option value="">-- All Cases --</option>
+                    {% for c in cases %}
+                        <option value="{{ c.id }}" {% if current_case and current_case.id == c.id %}selected{% endif %}>{{ c.case_number }} - {{ c.name }}</option>
+                    {% endfor %}
+                </select>
+            </div>
+            {% if current_case %}
+                <div class="col-md-3">
+                    <a href="{{ url_for('audit.chain_of_custody') }}" class="btn btn-outline-secondary btn-sm w-100">Clear Filter</a>
+                </div>
+            {% endif %}
+        </form>
+    </div>
+</div>
+
+<!-- Custody Table -->
+<div class="card card-soc">
+    <div class="card-body p-0">
+        <div class="table-responsive">
+            <table class="table table-soc mb-0 align-middle">
+                <thead>
+                    <tr>
+                        <th>Timestamp</th>
+                        <th>Case Number</th>
+                        <th>Action</th>
+                        <th>Investigator</th>
+                        <th>Evidence ID</th>
+                        <th>Audit Details</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for event in events %}
+                        <tr>
+                            <td><code class="text-info" style="font-size: 0.8rem;">{{ event.timestamp.strftime('%Y-%m-%d %H:%M:%S UTC') if event.timestamp else 'N/A' }}</code></td>
+                            <td><a href="{{ url_for('cases.case_detail', id=event.case_id) }}" class="text-secondary text-decoration-none">{{ event.case.case_number }}</a></td>
+                            <td><span class="badge bg-info bg-opacity-25 text-info">{{ event.event_action }}</span></td>
+                            <td class="fw-semibold text-light">{{ event.investigator }}</td>
+                            <td>
+                                {% if event.evidence_id %}
+                                    <a href="{{ url_for('evidence.evidence_detail', id=event.evidence_id) }}" class="text-info fw-bold text-decoration-none">
+                                        EVD-{{ event.evidence_id }}
+                                    </a>
+                                {% else %}
+                                    <span class="text-muted">-</span>
+                                {% endif %}
+                            </td>
+                            <td class="text-truncate" style="max-width: 400px;">{{ event.description }}</td>
+                        </tr>
+                    {% else %}
+                        <tr>
+                            <td colspan="6" class="text-center py-5 text-muted">
+                                <i class="bi bi-journal-check fs-1 d-block mb-2"></i>
+                                No chain of custody audit logs recorded.
+                            </td>
+                        </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </div>
+</div>
+{% endblock %}

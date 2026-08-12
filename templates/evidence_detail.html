@@ -1,0 +1,242 @@
+{% extends 'base.html' %}
+
+{% block title %}Evidence {{ evidence.evidence_number }} — FORENSIX{% endblock %}
+{% block header_title %}Evidence File Inspection: {{ evidence.evidence_number }}{% endblock %}
+
+{% block content %}
+<div class="row g-4 mb-4">
+    <!-- Main Evidence Overview -->
+    <div class="col-lg-8">
+        <div class="card card-soc mb-4">
+            <div class="card-soc-header">
+                <span><i class="bi bi-file-earmark-code text-info me-2"></i>Evidence Overview</span>
+                <span class="badge bg-secondary bg-opacity-50 text-light">{{ evidence.file_type }}</span>
+            </div>
+            <div class="card-body p-4">
+                <div class="row g-3 mb-3">
+                    <div class="col-md-6">
+                        <small class="text-muted d-block text-uppercase fw-bold">Original Filename</small>
+                        <span class="fs-5 fw-bold text-light">{{ evidence.original_filename }}</span>
+                    </div>
+                    <div class="col-md-6">
+                        <small class="text-muted d-block text-uppercase fw-bold">Associated Case</small>
+                        <a href="{{ url_for('cases.case_detail', id=evidence.case_id) }}" class="fs-5 text-info fw-bold text-decoration-none">
+                            {{ evidence.case.case_number }} - {{ evidence.case.name }}
+                        </a>
+                    </div>
+                    <div class="col-md-4">
+                        <small class="text-muted d-block text-uppercase fw-bold">File Size</small>
+                        <span class="fw-semibold text-light">{{ "{:,}".format(evidence.file_size) }} Bytes</span>
+                    </div>
+                    <div class="col-md-4">
+                        <small class="text-muted d-block text-uppercase fw-bold">MIME Type</small>
+                        <code class="text-info">{{ evidence.mime_type }}</code>
+                    </div>
+                    <div class="col-md-4">
+                        <small class="text-muted d-block text-uppercase fw-bold">Acquisition Investigator</small>
+                        <span class="text-light">{{ evidence.investigator }}</span>
+                    </div>
+                </div>
+
+                <div class="mb-3">
+                    <small class="text-muted d-block text-uppercase fw-bold">Description / Chain Notes</small>
+                    <p class="text-muted mb-0">{{ evidence.description or 'No acquisition description provided.' }}</p>
+                </div>
+            </div>
+        </div>
+
+        <!-- HASH VERIFICATION CARD -->
+        <div class="card card-soc mb-4 {% if evidence.integrity_status == 'FAILED' %}border-danger{% else %}border-success border-opacity-50{% endif %}">
+            <div class="card-soc-header">
+                <span><i class="bi bi-shield-check text-success me-2"></i>Cryptographic Hash Baseline & Integrity Status</span>
+                <span class="badge {% if evidence.integrity_status == 'VERIFIED' %}badge-verified{% else %}badge-failed{% endif %} fs-6 px-3 py-2">
+                    STATUS: {{ evidence.integrity_status }}
+                </span>
+            </div>
+            <div class="card-body p-4">
+                <div class="mb-3">
+                    <div class="d-flex justify-content-between align-items-center mb-1">
+                        <label class="form-label text-muted small text-uppercase fw-bold mb-0">Baseline SHA-256 Hash</label>
+                        <button type="button" class="btn btn-outline-secondary btn-sm py-0 px-2" onclick="copyToClipboard('{{ evidence.sha256_hash }}', this)">
+                            <i class="bi bi-clipboard me-1"></i> Copy SHA-256
+                        </button>
+                    </div>
+                    <div class="code-box text-break">{{ evidence.sha256_hash }}</div>
+                </div>
+
+                <div class="mb-3">
+                    <div class="d-flex justify-content-between align-items-center mb-1">
+                        <label class="form-label text-muted small text-uppercase fw-bold mb-0">Legacy MD5 Hash</label>
+                        <button type="button" class="btn btn-outline-secondary btn-sm py-0 px-2" onclick="copyToClipboard('{{ evidence.md5_hash }}', this)">
+                            <i class="bi bi-clipboard me-1"></i> Copy MD5
+                        </button>
+                    </div>
+                    <div class="code-box text-break" style="color: #94A3B8;">{{ evidence.md5_hash }}</div>
+                </div>
+
+                {% if evidence.integrity_status == 'FAILED' %}
+                    <div class="alert alert-danger mb-3 border-0">
+                        <i class="bi bi-exclamation-triangle-fill me-2 fs-5"></i>
+                        <strong>WARNING: EVIDENCE INTEGRITY FAILURE DETECTED!</strong><br/>
+                        The current file hash does not match baseline acquisition SHA-256. File has been modified or corrupted.
+                    </div>
+                {% endif %}
+
+                <form action="{{ url_for('evidence.verify_hash_route', id=evidence.id) }}" method="POST">
+                    <button type="submit" class="btn btn-outline-success btn-sm fw-semibold">
+                        <i class="bi bi-arrow-repeat me-1"></i> Verify Hash Integrity Now
+                    </button>
+                </form>
+            </div>
+        </div>
+
+        <!-- File Analysis & Anomaly Detection -->
+        <div class="card card-soc mb-4">
+            <div class="card-soc-header">
+                <span><i class="bi bi-search text-warning me-2"></i>File Structure & Anomaly Analysis</span>
+                {% if file_analysis.is_suspicious %}
+                    <span class="badge badge-high"><i class="bi bi-exclamation-triangle-fill me-1"></i>SUSPICIOUS ANOMALIES DETECTED</span>
+                {% else %}
+                    <span class="badge badge-verified">STRUCTURE NORMAL</span>
+                {% endif %}
+            </div>
+            <div class="card-body p-4">
+                <div class="row g-3 mb-3">
+                    <div class="col-md-6">
+                        <small class="text-muted d-block text-uppercase fw-bold">Header Magic Bytes</small>
+                        <code>{{ metadata.magic_signature }}</code>
+                    </div>
+                    <div class="col-md-6">
+                        <small class="text-muted d-block text-uppercase fw-bold">Magic Description</small>
+                        <span class="text-light fw-semibold">{{ metadata.magic_description }}</span>
+                    </div>
+                </div>
+
+                {% if file_analysis.issues %}
+                    <div class="mt-3">
+                        <h6 class="fw-bold text-warning mb-2"><i class="bi bi-shield-exclamation me-1"></i>Flagged Structural Anomaly Issues:</h6>
+                        {% for issue in file_analysis.issues %}
+                            <div class="alert alert-dark border-start border-3 border-warning mb-2 py-2">
+                                <strong>[{{ issue.type }}] Severity: {{ issue.severity }}</strong> — {{ issue.reason }}
+                            </div>
+                        {% endfor %}
+                    </div>
+                {% endif %}
+            </div>
+        </div>
+
+        <!-- Extracted Artifacts -->
+        <div class="card card-soc">
+            <div class="card-soc-header">
+                <span><i class="bi bi-cpu text-info me-2"></i>Extracted Artifacts ({{ artifacts|length }})</span>
+            </div>
+            <div class="card-body p-0">
+                <div class="table-responsive">
+                    <table class="table table-soc mb-0 align-middle">
+                        <thead>
+                            <tr>
+                                <th>Type</th>
+                                <th>Timestamp</th>
+                                <th>Source</th>
+                                <th>Details / Message</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% for art in artifacts %}
+                                <tr>
+                                    <td><span class="badge bg-info bg-opacity-25 text-info">{{ art.artifact_type }}</span></td>
+                                    <td><small class="text-muted">{{ art.timestamp.strftime('%Y-%m-%d %H:%M:%S') if art.timestamp else 'N/A' }}</small></td>
+                                    <td>{{ art.source }}</td>
+                                    <td class="text-truncate" style="max-width: 350px;">{{ art.message or art.url or art.title }}</td>
+                                </tr>
+                            {% else %}
+                                <tr>
+                                    <td colspan="4" class="text-center py-4 text-muted">No specific structured artifacts parsed from this file.</td>
+                                </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Right Sidebar Metadata & Notes -->
+    <div class="col-lg-4">
+        <!-- File Metadata Card -->
+        <div class="card card-soc mb-4">
+            <div class="card-soc-header">
+                <span><i class="bi bi-info-circle text-info me-2"></i>System Metadata</span>
+            </div>
+            <div class="card-body p-3 fs-7">
+                <ul class="list-group list-group-flush bg-transparent">
+                    <li class="list-group-item bg-transparent text-light border-secondary border-opacity-25 d-flex justify-content-between px-0">
+                        <span class="text-muted">Extension:</span>
+                        <span class="fw-semibold">{{ metadata.extension }}</span>
+                    </li>
+                    <li class="list-group-item bg-transparent text-light border-secondary border-opacity-25 d-flex justify-content-between px-0">
+                        <span class="text-muted">Created Time:</span>
+                        <small>{{ metadata.created_timestamp[:19] if metadata.created_timestamp else 'N/A' }}</small>
+                    </li>
+                    <li class="list-group-item bg-transparent text-light border-secondary border-opacity-25 d-flex justify-content-between px-0">
+                        <span class="text-muted">Modified Time:</span>
+                        <small>{{ metadata.modified_timestamp[:19] if metadata.modified_timestamp else 'N/A' }}</small>
+                    </li>
+                    <li class="list-group-item bg-transparent text-light border-secondary border-opacity-25 d-flex justify-content-between px-0">
+                        <span class="text-muted">Accessed Time:</span>
+                        <small>{{ metadata.accessed_timestamp[:19] if metadata.accessed_timestamp else 'N/A' }}</small>
+                    </li>
+                    <li class="list-group-item bg-transparent text-light border-secondary border-opacity-25 d-flex justify-content-between px-0">
+                        <span class="text-muted">Permissions Mode:</span>
+                        <code>{{ metadata.permissions }}</code>
+                    </li>
+                    <li class="list-group-item bg-transparent text-light border-secondary border-opacity-25 d-flex justify-content-between px-0">
+                        <span class="text-muted">Hidden Attribute:</span>
+                        <span class="badge {% if metadata.is_hidden %}bg-warning text-dark{% else %}bg-secondary bg-opacity-25{% endif %}">
+                            {{ metadata.is_hidden }}
+                        </span>
+                    </li>
+                </ul>
+
+                {% if metadata.exif %}
+                    <hr class="border-secondary border-opacity-25 my-3">
+                    <h6 class="fw-bold text-info mb-2"><i class="bi bi-camera me-1"></i>EXIF Metadata</h6>
+                    <small class="d-block text-muted">Make: {{ metadata.exif.make }}</small>
+                    <small class="d-block text-muted">Model: {{ metadata.exif.model }}</small>
+                    <small class="d-block text-muted">Software: {{ metadata.exif.software }}</small>
+                    <small class="d-block text-muted">Date Original: {{ metadata.exif.date_time_original }}</small>
+                {% endif %}
+            </div>
+        </div>
+
+        <!-- Investigator Notes Form -->
+        <div class="card card-soc mb-4">
+            <div class="card-soc-header">
+                <span><i class="bi bi-journal-text text-info me-2"></i>Investigator Notes</span>
+            </div>
+            <div class="card-body p-3">
+                <form action="{{ url_for('evidence.add_note', id=evidence.id) }}" method="POST" class="mb-3">
+                    <div class="mb-2">
+                        <textarea name="note" class="form-control form-control-soc" rows="3" placeholder="Append evidence observation note..." required></textarea>
+                    </div>
+                    <div class="d-flex justify-content-between align-items-center">
+                        <input type="text" name="investigator" class="form-control form-control-soc form-control-sm w-50" value="Lead Investigator">
+                        <button type="submit" class="btn btn-info btn-sm fw-semibold">Add Note</button>
+                    </div>
+                </form>
+
+                <div class="notes-list">
+                    {% for n in notes %}
+                        <div class="border-start border-3 border-info ps-2 mb-2 py-1">
+                            <div class="text-light small">{{ n.note }}</div>
+                            <small class="text-muted" style="font-size: 0.7rem;">{{ n.timestamp.strftime('%Y-%m-%d %H:%M') if n.timestamp else 'N/A' }} - {{ n.investigator }}</small>
+                        </div>
+                    {% else %}
+                        <div class="text-center text-muted small py-2">No notes added yet.</div>
+                    {% endfor %}
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

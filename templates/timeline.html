@@ -1,0 +1,122 @@
+{% extends 'base.html' %}
+
+{% block title %}Unified Timeline — FORENSIX{% endblock %}
+{% block header_title %}Unified Forensic Timeline Reconstruction{% endblock %}
+
+{% block content %}
+<div class="d-flex justify-content-between align-items-center mb-4">
+    <div>
+        <h4 class="fw-bold mb-1">Unified Evidence Timeline</h4>
+        <p class="text-muted small mb-0">Chronologically normalized correlation of file timestamps, browser sessions, system events, and custody logs.</p>
+    </div>
+</div>
+
+<!-- Controls & Filter Bar -->
+<div class="card card-soc mb-4">
+    <div class="card-body p-3">
+        <form method="GET" action="{{ url_for('timeline.index') }}" class="row g-3 align-items-center">
+            <div class="col-md-3">
+                <label class="form-label text-muted small fw-bold mb-1">Active Case</label>
+                <select id="timeline-case-select" name="case_id" class="form-select form-select-soc" onchange="this.form.submit()">
+                    {% for c in cases %}
+                        <option value="{{ c.id }}" {% if current_case and current_case.id == c.id %}selected{% endif %}>{{ c.case_number }} - {{ c.name }}</option>
+                    {% endfor %}
+                </select>
+            </div>
+            <div class="col-md-3">
+                <label class="form-label text-muted small fw-bold mb-1">Artifact Type</label>
+                <select id="filter-artifact-type" name="type" class="form-select form-select-soc">
+                    <option value="ALL">All Types</option>
+                    <option value="BROWSER">Browser</option>
+                    <option value="DOWNLOAD">Download</option>
+                    <option value="LOG">System Log</option>
+                    <option value="FILE_IMPORT">File Import</option>
+                    <option value="AUDIT">Custody Audit</option>
+                </select>
+            </div>
+            <div class="col-md-3">
+                <label class="form-label text-muted small fw-bold mb-1">Severity Threshold</label>
+                <select id="filter-severity" name="severity" class="form-select form-select-soc">
+                    <option value="ALL">All Severities</option>
+                    <option value="INFORMATIONAL">Informational</option>
+                    <option value="LOW">Low</option>
+                    <option value="MEDIUM">Medium</option>
+                    <option value="HIGH">High</option>
+                    <option value="CRITICAL">Critical</option>
+                </select>
+            </div>
+            <div class="col-md-3">
+                <label class="form-label text-muted small fw-bold mb-1">Search Keywords</label>
+                <input type="text" id="timeline-search" class="form-control form-control-soc" placeholder="Filter events...">
+            </div>
+        </form>
+    </div>
+</div>
+
+<!-- Timeline Visual Graph -->
+<div class="card card-soc mb-4">
+    <div class="card-soc-header">
+        <span><i class="bi bi-graph-up-arrow text-info me-2"></i>Timeline Event Activity Trend</span>
+    </div>
+    <div class="card-body" style="height: 240px;">
+        <canvas id="chart-timeline-events"></canvas>
+    </div>
+</div>
+
+<!-- Timeline Events Table -->
+<div class="card card-soc">
+    <div class="card-body p-0">
+        <div class="table-responsive">
+            <table class="table table-soc mb-0 align-middle">
+                <thead>
+                    <tr>
+                        <th>Normalized Timestamp</th>
+                        <th>Severity</th>
+                        <th>Type</th>
+                        <th>Source</th>
+                        <th>Event Name</th>
+                        <th>Event Description</th>
+                        <th>Evidence ID</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for evt in events %}
+                        <tr>
+                            <td><code class="text-info" style="font-size: 0.8rem;">{{ evt.timestamp.strftime('%Y-%m-%d %H:%M:%S UTC') if evt.timestamp else 'N/A' }}</code></td>
+                            <td>
+                                <span class="badge badge-{{ evt.severity.lower() if evt.severity in ['LOW', 'MEDIUM', 'HIGH', 'CRITICAL'] else 'info' }}">
+                                    {{ evt.severity }}
+                                </span>
+                            </td>
+                            <td><span class="badge bg-secondary bg-opacity-50 text-light">{{ evt.artifact_type }}</span></td>
+                            <td><span class="fw-semibold text-light">{{ evt.source }}</span></td>
+                            <td class="fw-bold text-light">{{ evt.event_name }}</td>
+                            <td class="text-truncate" style="max-width: 350px;">{{ evt.description }}</td>
+                            <td>
+                                {% if evt.evidence_id %}
+                                    <a href="{{ url_for('evidence.evidence_detail', id=evt.evidence_id) }}" class="text-secondary text-decoration-none">
+                                        EVD-{{ evt.evidence_id }}
+                                    </a>
+                                {% else %}
+                                    <span class="text-muted">-</span>
+                                {% endif %}
+                            </td>
+                        </tr>
+                    {% else %}
+                        <tr>
+                            <td colspan="7" class="text-center py-5 text-muted">
+                                <i class="bi bi-clock-history fs-1 d-block mb-2"></i>
+                                No timeline events found for this case. Ingest evidence files to generate timeline.
+                            </td>
+                        </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script src="{{ url_for('static', filename='js/timeline.js') }}"></script>
+{% endblock %}

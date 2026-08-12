@@ -1,0 +1,103 @@
+{% extends 'base.html' %}
+
+{% block title %}Extracted Artifacts — FORENSIX{% endblock %}
+{% block header_title %}Extracted Artifacts & System Logs{% endblock %}
+
+{% block content %}
+<div class="d-flex justify-content-between align-items-center mb-4">
+    <div>
+        <h4 class="fw-bold mb-1">Parsed Forensic Artifacts</h4>
+        <p class="text-muted small mb-0">Extracted web browsing activity, downloads, authentication log events, and structured metadata.</p>
+    </div>
+</div>
+
+<!-- Filter Bar -->
+<div class="card card-soc mb-4">
+    <div class="card-body p-3">
+        <form method="GET" action="{{ url_for('artifacts.list_artifacts') }}" class="row g-3 align-items-center">
+            <div class="col-md-3">
+                <select name="case_id" class="form-select form-select-soc" onchange="this.form.submit()">
+                    <option value="">-- All Cases --</option>
+                    {% for c in cases %}
+                        <option value="{{ c.id }}" {% if current_case and current_case.id == c.id %}selected{% endif %}>{{ c.case_number }} - {{ c.name }}</option>
+                    {% endfor %}
+                </select>
+            </div>
+            <div class="col-md-3">
+                <select name="type" class="form-select form-select-soc" onchange="this.form.submit()">
+                    <option value="ALL">-- All Artifact Types --</option>
+                    <option value="browser_history" {% if selected_type == 'browser_history' %}selected{% endif %}>Browser History</option>
+                    <option value="browser_download" {% if selected_type == 'browser_download' %}selected{% endif %}>Browser Downloads</option>
+                    <option value="log_entry" {% if selected_type == 'log_entry' %}selected{% endif %}>Log Entries</option>
+                </select>
+            </div>
+            <div class="col-md-4">
+                <div class="input-group">
+                    <input type="text" name="q" class="form-control form-control-soc" placeholder="Search URL, IP, Username, message..." value="{{ search_query or '' }}">
+                    <button type="submit" class="btn btn-info"><i class="bi bi-search"></i></button>
+                </div>
+            </div>
+            <div class="col-md-2">
+                <a href="{{ url_for('artifacts.list_artifacts') }}" class="btn btn-outline-secondary w-100">Reset</a>
+            </div>
+        </form>
+    </div>
+</div>
+
+<!-- Artifacts Table -->
+<div class="card card-soc">
+    <div class="card-body p-0">
+        <div class="table-responsive">
+            <table class="table table-soc mb-0 align-middle">
+                <thead>
+                    <tr>
+                        <th>Timestamp</th>
+                        <th>Type</th>
+                        <th>Source</th>
+                        <th>URL / Title / Message</th>
+                        <th>User / IP</th>
+                        <th>Evidence File</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for art in artifacts %}
+                        <tr>
+                            <td><small class="text-muted">{{ art.timestamp.strftime('%Y-%m-%d %H:%M:%S UTC') if art.timestamp else 'N/A' }}</small></td>
+                            <td>
+                                <span class="badge {% if art.artifact_type == 'browser_download' %}bg-warning text-dark{% elif art.artifact_type == 'browser_history' %}bg-info bg-opacity-25 text-info{% else %}bg-secondary bg-opacity-50{% endif %}">
+                                    {{ art.artifact_type }}
+                                </span>
+                            </td>
+                            <td><span class="fw-semibold text-light">{{ art.source }}</span></td>
+                            <td class="text-truncate" style="max-width: 400px;">
+                                {% if art.url %}
+                                    <div class="text-info fw-semibold">{{ art.title or art.url }}</div>
+                                    <small class="text-muted text-truncate d-block">{{ art.url }}</small>
+                                {% else %}
+                                    {{ art.message }}
+                                {% endif %}
+                            </td>
+                            <td>
+                                {% if art.username %}<span class="badge bg-secondary me-1"><i class="bi bi-person me-1"></i>{{ art.username }}</span>{% endif %}
+                                {% if art.ip_address %}<span class="badge bg-dark border border-secondary text-info"><i class="bi bi-hdd-network me-1"></i>{{ art.ip_address }}</span>{% endif %}
+                            </td>
+                            <td>
+                                <a href="{{ url_for('evidence.evidence_detail', id=art.evidence_id) }}" class="text-secondary text-decoration-none">
+                                    {{ art.evidence.evidence_number }}
+                                </a>
+                            </td>
+                        </tr>
+                    {% else %}
+                        <tr>
+                            <td colspan="6" class="text-center py-5 text-muted">
+                                <i class="bi bi-cpu fs-1 d-block mb-2"></i>
+                                No forensic artifacts found matching search filter criteria.
+                            </td>
+                        </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </div>
+</div>
+{% endblock %}

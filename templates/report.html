@@ -1,0 +1,81 @@
+{% extends 'base.html' %}
+
+{% block title %}Forensic PDF Reports — FORENSIX{% endblock %}
+{% block header_title %}Forensic Report Generator{% endblock %}
+
+{% block content %}
+<div class="d-flex justify-content-between align-items-center mb-4">
+    <div>
+        <h4 class="fw-bold mb-1">Professional PDF Forensic Report Compiler</h4>
+        <p class="text-muted small mb-0">Generates court-suitable PDF reports compiled using ReportLab.</p>
+    </div>
+</div>
+
+<!-- Select Case Card -->
+<div class="card card-soc mb-4 shadow-sm">
+    <div class="card-body p-4 p-md-4">
+        <form method="GET" action="{{ url_for('reports.list_reports') }}" class="row g-4 align-items-center">
+            <div class="col-lg-7">
+                <label class="form-label text-muted small fw-bold uppercase-title mb-2">Select Target Case for Report Compilation</label>
+                <select name="case_id" class="form-select form-select-soc form-select-lg" onchange="this.form.submit()">
+                    {% for c in cases %}
+                        <option value="{{ c.id }}" {% if current_case and current_case.id == c.id %}selected{% endif %}>{{ c.case_number }} - {{ c.name }}</option>
+                    {% endfor %}
+                </select>
+            </div>
+            <div class="col-lg-5 text-lg-end pt-2 pt-lg-4">
+                {% if current_case %}
+                    <div class="d-flex flex-wrap justify-content-lg-end gap-3">
+                        <form action="{{ url_for('reports.generate_report', case_id=current_case.id) }}" method="POST" class="d-inline">
+                            <button type="submit" class="btn btn-info btn-lg px-4 fw-semibold shadow-sm">
+                                <i class="bi bi-gear-fill me-2"></i> Generate PDF
+                            </button>
+                        </form>
+                        <a href="{{ url_for('reports.download_report', case_id=current_case.id) }}" class="btn btn-outline-success btn-lg px-4 fw-semibold shadow-sm">
+                            <i class="bi bi-download me-2"></i> Download PDF
+                        </a>
+                    </div>
+                {% endif %}
+            </div>
+        </form>
+    </div>
+</div>
+
+{% if current_case %}
+    <!-- Report Preview Summary Card -->
+    <div class="card card-soc shadow-lg">
+        <div class="card-soc-header py-3 px-4">
+            <span class="fs-6"><i class="bi bi-file-earmark-pdf text-danger me-2"></i>PDF Report Structure Preview: <span class="text-info fw-bold">{{ current_case.case_number }}</span></span>
+            <span class="badge bg-info bg-opacity-25 text-info px-3 py-2">ReportLab Engine v4.0</span>
+        </div>
+        <div class="card-body p-4 p-md-5">
+            <div class="row g-4 align-items-center">
+                <div class="col-lg-7">
+                    <h6 class="fw-bold text-info border-bottom border-secondary border-opacity-25 pb-3 mb-3">Included Forensic Sections:</h6>
+                    <ul class="list-group list-group-flush bg-transparent">
+                        <li class="list-group-item bg-transparent text-light border-0 px-0 py-2.5 d-flex align-items-center"><span class="badge bg-secondary bg-opacity-50 text-info me-3">1</span> Cover Page & Case Metadata</li>
+                        <li class="list-group-item bg-transparent text-light border-0 px-0 py-2.5 d-flex align-items-center"><span class="badge bg-secondary bg-opacity-50 text-info me-3">2</span> Executive Summary & Examination Scope</li>
+                        <li class="list-group-item bg-transparent text-light border-0 px-0 py-2.5 d-flex align-items-center"><span class="badge bg-secondary bg-opacity-50 text-info me-3">3</span> Digital Evidence Inventory & Hashes (SHA-256 / MD5)</li>
+                        <li class="list-group-item bg-transparent text-light border-0 px-0 py-2.5 d-flex align-items-center"><span class="badge bg-secondary bg-opacity-50 text-info me-3">4</span> Chain of Custody Audit Log</li>
+                        <li class="list-group-item bg-transparent text-light border-0 px-0 py-2.5 d-flex align-items-center"><span class="badge bg-secondary bg-opacity-50 text-info me-3">5</span> Rule-Based Forensic Findings</li>
+                        <li class="list-group-item bg-transparent text-light border-0 px-0 py-2.5 d-flex align-items-center"><span class="badge bg-secondary bg-opacity-50 text-info me-3">6</span> Investigator Notes & Observations</li>
+                        <li class="list-group-item bg-transparent text-light border-0 px-0 py-2.5 d-flex align-items-center"><span class="badge bg-secondary bg-opacity-50 text-info me-3">7</span> Forensic Conclusion & Scope Limitations</li>
+                    </ul>
+                </div>
+
+                <div class="col-lg-5">
+                    <div class="p-4 rounded-3 bg-dark border border-secondary border-opacity-25 shadow-sm">
+                        <h6 class="fw-bold text-light mb-3"><i class="bi bi-shield-check text-success me-2 fs-5"></i>Report Standards & Compliance:</h6>
+                        <ul class="text-muted small mb-0 ps-3" style="line-height: 1.8;">
+                            <li class="mb-2">Uses professional neutral forensic terminology (e.g. <i>"Observed evidence indicates..."</i>).</li>
+                            <li class="mb-2">Includes full SHA-256 baseline hashes for all evidence items.</li>
+                            <li class="mb-2">Lists exact chain of custody timestamps for forensic reproducibility.</li>
+                            <li class="mb-0">Outlines scope boundaries and format limitations.</li>
+                        </ul>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+{% endif %}
+{% endblock %}

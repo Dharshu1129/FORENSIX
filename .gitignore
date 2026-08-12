@@ -1,0 +1,34 @@
+# Python byte-compiled / optimized / DLL files
+__pycache__/
+*.py[cod]
+*$py.class
+
+# Virtual Environment
+venv/
+ENV/
+env/
+
+# Database
+*.db
+*.sqlite3
+
+# Uploads & Reports (Keep directory structure but ignore generated files)
+uploads/*
+!uploads/.gitkeep
+working_evidence/*
+!working_evidence/.gitkeep
+generated_reports/*
+!generated_reports/.gitkeep
+sample_evidence/*
+!sample_evidence/.gitkeep
+
+# Pytest / Coverage
+.pytest_cache/
+.coverage
+htmlcov/
+
+# IDE & OS
+.vscode/
+.idea/
+.DS_Store
+Thumbs.db

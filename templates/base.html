@@ -1,0 +1,187 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>{% block title %}FORENSIX — Digital Forensics Evidence Analyzer{% endblock %}</title>
+    
+    <!-- Google Fonts -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Fira+Code:wght@400;500&family=Inter:wght@300;400;500;600;700;800&family=Outfit:wght@600;700;800;900&display=swap" rel="stylesheet">
+    
+    <!-- Bootstrap 5 & Icons -->
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.1/font/bootstrap-icons.css" rel="stylesheet">
+    
+    <!-- Custom SOC Styling -->
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}">
+    
+    <!-- Chart.js -->
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    
+    {% block head %}{% endblock %}
+</head>
+<body>
+    <div class="d-flex" id="wrapper">
+        <!-- Sidebar Navigation -->
+        <div id="sidebar-wrapper">
+            <div class="sidebar-heading border-bottom border-secondary border-opacity-25 py-3 text-center">
+                <a href="{{ url_for('dashboard.index') }}" class="text-decoration-none">
+                    <div class="brand-title"><i class="bi bi-shield-lock-fill text-info me-2"></i>FORENSIX</div>
+                    <div class="text-muted" style="font-size: 0.625rem; letter-spacing: 1.5px;">EVIDENCE ANALYZER PLATFORM</div>
+                </a>
+            </div>
+            
+            <!-- Quick Demo Button -->
+            <div class="p-3">
+                <form action="{{ url_for('cases.generate_demo') }}" method="POST">
+                    <button type="submit" class="btn btn-outline-info btn-sm w-100 fw-semibold shadow-sm">
+                        <i class="bi bi-magic me-1.5"></i> Generate Demo Case
+                    </button>
+                </form>
+            </div>
+
+            <!-- Sidebar Navigation Categories -->
+            <div class="sidebar-heading">OVERVIEW</div>
+            <div class="list-group list-group-flush px-1 mb-2">
+                <a href="{{ url_for('dashboard.index') }}" class="list-group-item list-group-item-action {% if request.endpoint == 'dashboard.index' %}active{% endif %}">
+                    <i class="bi bi-speedometer2"></i> SOC Dashboard
+                </a>
+                <a href="{{ url_for('cases.list_cases') }}" class="list-group-item list-group-item-action {% if 'cases' in (request.endpoint or '') %}active{% endif %}">
+                    <i class="bi bi-folder-symlink"></i> Cases Management
+                </a>
+            </div>
+
+            <div class="sidebar-heading">EVIDENCE & ARTIFACTS</div>
+            <div class="list-group list-group-flush px-1 mb-2">
+                <a href="{{ url_for('evidence.list_evidence') }}" class="list-group-item list-group-item-action {% if 'evidence' in (request.endpoint or '') %}active{% endif %}">
+                    <i class="bi bi-hdd-network"></i> Evidence Items
+                </a>
+                <a href="{{ url_for('artifacts.list_artifacts') }}" class="list-group-item list-group-item-action {% if 'artifacts' in (request.endpoint or '') %}active{% endif %}">
+                    <i class="bi bi-cpu"></i> Extracted Artifacts
+                </a>
+                <a href="{{ url_for('timeline.index') }}" class="list-group-item list-group-item-action {% if 'timeline' in (request.endpoint or '') %}active{% endif %}">
+                    <i class="bi bi-clock-history"></i> Forensic Timeline
+                </a>
+            </div>
+
+            <div class="sidebar-heading">INVESTIGATION & AUDIT</div>
+            <div class="list-group list-group-flush px-1">
+                <a href="{{ url_for('investigation.entity_investigation') }}" class="list-group-item list-group-item-action {% if 'investigation' in (request.endpoint or '') %}active{% endif %}">
+                    <i class="bi bi-search-heart"></i> Entity Search
+                </a>
+                <a href="{{ url_for('findings.list_findings') }}" class="list-group-item list-group-item-action {% if 'findings' in (request.endpoint or '') %}active{% endif %}">
+                    <i class="bi bi-exclamation-triangle"></i> Suspicious Findings
+                </a>
+                <a href="{{ url_for('audit.chain_of_custody') }}" class="list-group-item list-group-item-action {% if 'audit' in (request.endpoint or '') %}active{% endif %}">
+                    <i class="bi bi-journal-check"></i> Chain of Custody
+                </a>
+                <a href="{{ url_for('reports.list_reports') }}" class="list-group-item list-group-item-action {% if 'reports' in (request.endpoint or '') %}active{% endif %}">
+                    <i class="bi bi-file-earmark-pdf"></i> Forensic Reports
+                </a>
+            </div>
+
+            <div class="mt-auto p-3 text-center border-top border-secondary border-opacity-25" style="font-size: 0.7rem; color: var(--text-muted);">
+                <i class="bi bi-shield-check text-success me-1"></i> Read-Only Protection Active
+            </div>
+        </div>
+
+        <!-- Page Content -->
+        <div id="page-content-wrapper" class="flex-grow-1 d-flex flex-column min-vh-100">
+            <!-- Top Navbar -->
+            <nav class="navbar navbar-expand-lg navbar-clean px-4 py-3 sticky-top">
+                <div class="container-fluid p-0">
+                    <span class="navbar-brand mb-0 h1 text-light fw-bold" style="font-size: 1.1rem;">
+                        {% block header_title %}Digital Forensics Evidence Analyzer{% endblock %}
+                    </span>
+                    <div class="d-flex align-items-center gap-3">
+                        <div class="d-none d-md-flex align-items-center px-3 py-1.5 rounded bg-dark border border-secondary border-opacity-25" style="font-size: 0.8rem;">
+                            <i class="bi bi-clock-history text-info me-2"></i>
+                            <span id="live-utc-clock" class="font-monospace text-light fw-semibold">00:00:00 UTC</span>
+                        </div>
+                        <span class="badge bg-secondary bg-opacity-25 text-info border border-info border-opacity-25 px-3 py-2">
+                            <i class="bi bi-cpu-fill me-1"></i> SYSTEM READY
+                        </span>
+                        <a href="{{ url_for('cases.create_case') }}" class="btn btn-info btn-sm fw-semibold">
+                            <i class="bi bi-plus-lg me-1"></i> New Case
+                        </a>
+                    </div>
+                </div>
+            </nav>
+
+            <!-- Main Content Container -->
+            <div class="container-fluid p-4 flex-grow-1">
+                <!-- Flash Messages -->
+                {% with messages = get_flashed_messages(with_categories=true) %}
+                    {% if messages %}
+                        {% for category, message in messages %}
+                            <div class="alert alert-{{ category if category != 'error' else 'danger' }} alert-dismissible fade show mb-4 border-0 shadow-sm" role="alert">
+                                <strong>{% if category == 'success' %}<i class="bi bi-check-circle-fill me-2"></i>{% elif category == 'danger' %}<i class="bi bi-exclamation-octagon-fill me-2"></i>{% else %}<i class="bi bi-info-circle-fill me-2"></i>{% endif %}</strong> {{ message }}
+                                <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+                            </div>
+                        {% endfor %}
+                    {% endif %}
+                {% endwith %}
+
+                {% block content %}{% endblock %}
+            </div>
+
+            <!-- Footer -->
+            <footer class="footer py-3 border-top border-secondary border-opacity-25 text-center text-muted" style="font-size: 0.75rem; background-color: var(--bg-sidebar);">
+                <div class="container">
+                    <span>FORENSIX Digital Forensics Evidence Analysis Platform &copy; 2026. Designed for Read-Only Local Evidence Processing.</span>
+                </div>
+            </footer>
+        </div>
+    </div>
+
+    <!-- Bootstrap JS & App Utilities -->
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/js/bootstrap.bundle.min.js"></script>
+    <script>
+        // Live UTC Clock
+        function updateUTCClock() {
+            const clockEl = document.getElementById('live-utc-clock');
+            if (clockEl) {
+                const now = new Date();
+                const h = String(now.getUTCHours()).padStart(2, '0');
+                const m = String(now.getUTCMinutes()).padStart(2, '0');
+                const s = String(now.getUTCSeconds()).padStart(2, '0');
+                clockEl.textContent = `${h}:${m}:${s} UTC`;
+            }
+        }
+        setInterval(updateUTCClock, 1000);
+        updateUTCClock();
+
+        // Copy text to clipboard helper
+        function copyToClipboard(text, btnElement) {
+            navigator.clipboard.writeText(text).then(() => {
+                const originalHTML = btnElement.innerHTML;
+                btnElement.innerHTML = '<i class="bi bi-check2 text-success"></i> Copied!';
+                setTimeout(() => {
+                    btnElement.innerHTML = originalHTML;
+                }, 2000);
+            }).catch(err => console.error("Copy error:", err));
+        }
+
+        // Silky Smooth Pointer-Tracking Bubble Effect
+        document.querySelectorAll('.list-group-item-action').forEach(item => {
+            let ticking = false;
+            item.addEventListener('mousemove', function (e) {
+                if (!ticking) {
+                    window.requestAnimationFrame(() => {
+                        const rect = item.getBoundingClientRect();
+                        const x = e.clientX - rect.left;
+                        const y = e.clientY - rect.top;
+                        item.style.setProperty('--mouse-x', `${x}px`);
+                        item.style.setProperty('--mouse-y', `${y}px`);
+                        ticking = false;
+                    });
+                    ticking = true;
+                }
+            });
+        });
+    </script>
+    {% block scripts %}{% endblock %}
+</body>
+</html>

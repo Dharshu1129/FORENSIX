@@ -1,0 +1,86 @@
+{% extends 'base.html' %}
+
+{% block title %}Case Management — FORENSIX{% endblock %}
+{% block header_title %}Forensic Case Management{% endblock %}
+
+{% block content %}
+<div class="d-flex justify-content-between align-items-center mb-4">
+    <div>
+        <h4 class="fw-bold mb-1">Forensic Investigation Cases</h4>
+        <p class="text-muted small mb-0">Manage digital evidence containers, investigator assignments, and case findings.</p>
+    </div>
+    <div class="d-flex gap-2">
+        <form action="{{ url_for('cases.generate_demo') }}" method="POST">
+            <button type="submit" class="btn btn-outline-info fw-semibold">
+                <i class="bi bi-magic me-1"></i> Generate Demo Case
+            </button>
+        </form>
+        <a href="{{ url_for('cases.create_case') }}" class="btn btn-info fw-semibold">
+            <i class="bi bi-plus-circle me-1"></i> Create New Case
+        </a>
+    </div>
+</div>
+
+<div class="card card-soc">
+    <div class="card-body p-0">
+        <div class="table-responsive">
+            <table class="table table-soc mb-0 align-middle">
+                <thead>
+                    <tr>
+                        <th>Case Number</th>
+                        <th>Case Name</th>
+                        <th>Investigator</th>
+                        <th>Status</th>
+                        <th>Evidence</th>
+                        <th>Findings</th>
+                        <th>Created Date</th>
+                        <th class="text-end">Actions</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for case in cases %}
+                        <tr>
+                            <td>
+                                <a href="{{ url_for('cases.case_detail', id=case.id) }}" class="text-info fw-bold text-decoration-none">
+                                    {{ case.case_number }}
+                                </a>
+                            </td>
+                            <td>
+                                <div class="fw-semibold">{{ case.name }}</div>
+                                <div class="text-muted small text-truncate" style="max-width: 250px;">{{ case.description or 'No description' }}</div>
+                            </td>
+                            <td>{{ case.investigator }}</td>
+                            <td>
+                                <span class="badge {% if case.status == 'Open' %}bg-primary{% elif case.status == 'Under Investigation' %}bg-warning text-dark{% else %}bg-secondary{% endif %}">
+                                    {{ case.status }}
+                                </span>
+                            </td>
+                            <td><span class="badge bg-info bg-opacity-25 text-info">{{ case.evidence_items|length }} items</span></td>
+                            <td><span class="badge bg-warning bg-opacity-25 text-warning">{{ case.findings|length }} findings</span></td>
+                            <td><small class="text-muted">{{ case.created_at.strftime('%Y-%m-%d %H:%M') if case.created_at else 'N/A' }}</small></td>
+                            <td class="text-end">
+                                <a href="{{ url_for('cases.case_detail', id=case.id) }}" class="btn btn-outline-info btn-sm">
+                                    <i class="bi bi-folder2-open me-1"></i> Open
+                                </a>
+                            </td>
+                        </tr>
+                    {% else %}
+                        <tr>
+                            <td colspan="8" class="text-center py-5">
+                                <div class="text-muted mb-3"><i class="bi bi-folder-x fs-1"></i></div>
+                                <h5>No Forensic Cases Found</h5>
+                                <p class="text-muted small mb-3">Create your first case or click "Generate Demo Case" to load pre-populated synthetic evidence.</p>
+                                <form action="{{ url_for('cases.generate_demo') }}" method="POST" class="d-inline">
+                                    <button type="submit" class="btn btn-info btn-sm">
+                                        <i class="bi bi-magic me-1"></i> Generate Demo Case
+                                    </button>
+                                </form>
+                            </td>
+                        </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </div>
+</div>
+{% endblock %}

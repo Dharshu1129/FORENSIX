@@ -1,0 +1,247 @@
+{% extends 'base.html' %}
+
+{% block title %}Case {{ case.case_number }} — FORENSIX{% endblock %}
+{% block header_title %}Case Details: {{ case.case_number }}{% endblock %}
+
+{% block content %}
+<!-- Case Header Card -->
+<div class="card card-soc mb-4">
+    <div class="card-body p-4">
+        <div class="d-flex flex-wrap justify-content-between align-items-start gap-3">
+            <div>
+                <div class="d-flex align-items-center gap-3 mb-2">
+                    <h3 class="fw-bold mb-0 text-info">{{ case.case_number }}</h3>
+                    <span class="badge {% if case.status == 'Open' %}bg-primary{% elif case.status == 'Under Investigation' %}bg-warning text-dark{% else %}bg-secondary{% endif %} px-3 py-2 fs-6">
+                        {{ case.status }}
+                    </span>
+                </div>
+                <h5 class="fw-semibold text-light mb-2">{{ case.name }}</h5>
+                <p class="text-muted mb-0" style="max-width: 800px;">{{ case.description or 'No description provided.' }}</p>
+            </div>
+            
+            <div class="d-flex flex-wrap gap-2">
+                <button type="button" class="btn btn-info btn-sm fw-semibold" data-bs-toggle="modal" data-bs-target="#uploadModal">
+                    <i class="bi bi-upload me-1"></i> Add Evidence
+                </button>
+                <form action="{{ url_for('findings.reanalyze_case', case_id=case.id) }}" method="POST" class="d-inline">
+                    <button type="submit" class="btn btn-outline-warning btn-sm fw-semibold">
+                        <i class="bi bi-arrow-repeat me-1"></i> Re-Analyze Case
+                    </button>
+                </form>
+                <a href="{{ url_for('reports.list_reports', case_id=case.id) }}" class="btn btn-outline-info btn-sm fw-semibold">
+                    <i class="bi bi-file-earmark-pdf me-1"></i> PDF Report
+                </a>
+                {% if case.status != 'Closed' %}
+                <form action="{{ url_for('cases.close_case', id=case.id) }}" method="POST" class="d-inline">
+                    <button type="submit" class="btn btn-outline-secondary btn-sm" onclick="return confirm('Are you sure you want to close this case?');">
+                        <i class="bi bi-lock me-1"></i> Close Case
+                    </button>
+                </form>
+                {% endif %}
+            </div>
+        </div>
+
+        <hr class="border-secondary border-opacity-25 my-3">
+
+        <div class="row text-center g-3">
+            <div class="col-md-3">
+                <small class="text-muted d-block text-uppercase fw-bold">Lead Investigator</small>
+                <span class="fw-semibold text-light">{{ case.investigator }}</span>
+            </div>
+            <div class="col-md-3">
+                <small class="text-muted d-block text-uppercase fw-bold">Evidence Count</small>
+                <span class="fw-bold text-info fs-5">{{ case.evidence_items|length }}</span>
+            </div>
+            <div class="col-md-3">
+                <small class="text-muted d-block text-uppercase fw-bold">Suspicious Findings</small>
+                <span class="fw-bold text-warning fs-5">{{ case.findings|length }}</span>
+            </div>
+            <div class="col-md-3">
+                <small class="text-muted d-block text-uppercase fw-bold">Created Date</small>
+                <span class="text-muted">{{ case.created_at.strftime('%Y-%m-%d %H:%M UTC') if case.created_at else 'N/A' }}</span>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Tabs Section -->
+<ul class="nav nav-tabs nav-tabs-soc mb-4" id="caseTabs" role="tablist">
+    <li class="nav-item" role="presentation">
+        <button class="nav-link active fw-semibold text-light" id="evidence-tab" data-bs-toggle="tab" data-bs-target="#evidence-pane" type="button" role="tab">
+            <i class="bi bi-hdd-network me-1"></i> Ingested Evidence ({{ case.evidence_items|length }})
+        </button>
+    </li>
+    <li class="nav-item" role="presentation">
+        <button class="nav-link fw-semibold text-light" id="findings-tab" data-bs-toggle="tab" data-bs-target="#findings-pane" type="button" role="tab">
+            <i class="bi bi-exclamation-triangle me-1"></i> Findings ({{ case.findings|length }})
+        </button>
+    </li>
+    <li class="nav-item" role="presentation">
+        <button class="nav-link fw-semibold text-light" id="custody-tab" data-bs-toggle="tab" data-bs-target="#custody-pane" type="button" role="tab">
+            <i class="bi bi-journal-check me-1"></i> Chain of Custody ({{ case.custody_events|length }})
+        </button>
+    </li>
+</ul>
+
+<div class="tab-content" id="caseTabsContent">
+    <!-- Evidence Pane -->
+    <div class="tab-pane fade show active" id="evidence-pane" role="tabpanel">
+        <div class="card card-soc">
+            <div class="card-body p-0">
+                <div class="table-responsive">
+                    <table class="table table-soc mb-0 align-middle">
+                        <thead>
+                            <tr>
+                                <th>Evidence ID</th>
+                                <th>Original Filename</th>
+                                <th>Type</th>
+                                <th>Size</th>
+                                <th>SHA-256 Hash</th>
+                                <th>Integrity</th>
+                                <th class="text-end">Action</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% for ev in case.evidence_items %}
+                                <tr>
+                                    <td><a href="{{ url_for('evidence.evidence_detail', id=ev.id) }}" class="text-info fw-bold text-decoration-none">{{ ev.evidence_number }}</a></td>
+                                    <td>
+                                        <div class="fw-semibold">{{ ev.original_filename }}</div>
+                                        <small class="text-muted">{{ ev.mime_type }}</small>
+                                    </td>
+                                    <td><span class="badge bg-secondary bg-opacity-50">{{ ev.file_type }}</span></td>
+                                    <td>{{ "{:,}".format(ev.file_size) }} B</td>
+                                    <td><code class="text-info" style="font-size: 0.75rem;">{{ ev.sha256_hash[:16] }}...</code></td>
+                                    <td>
+                                        <span class="badge {% if ev.integrity_status == 'VERIFIED' %}badge-verified{% else %}badge-failed{% endif %}">
+                                            {{ ev.integrity_status }}
+                                        </span>
+                                    </td>
+                                    <td class="text-end">
+                                        <a href="{{ url_for('evidence.evidence_detail', id=ev.id) }}" class="btn btn-outline-info btn-sm">
+                                            Inspect <i class="bi bi-arrow-right"></i>
+                                        </a>
+                                    </td>
+                                </tr>
+                            {% else %}
+                                <tr>
+                                    <td colspan="7" class="text-center py-4 text-muted">No evidence files attached to this case. Click "Add Evidence" above to ingest files.</td>
+                                </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Findings Pane -->
+    <div class="tab-pane fade" id="findings-pane" role="tabpanel">
+        <div class="card card-soc">
+            <div class="card-body p-0">
+                <div class="table-responsive">
+                    <table class="table table-soc mb-0 align-middle">
+                        <thead>
+                            <tr>
+                                <th>Finding ID</th>
+                                <th>Severity</th>
+                                <th>Rule Triggered</th>
+                                <th>Category</th>
+                                <th>Reason</th>
+                                <th>Confidence</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% for fnd in case.findings %}
+                                <tr>
+                                    <td><span class="fw-bold text-info">{{ fnd.finding_number }}</span></td>
+                                    <td><span class="badge badge-{{ fnd.severity.lower() }}">{{ fnd.severity }}</span></td>
+                                    <td class="fw-semibold">{{ fnd.rule_name }}</td>
+                                    <td><span class="text-muted small">{{ fnd.category }}</span></td>
+                                    <td class="text-truncate" style="max-width: 300px;">{{ fnd.reason }}</td>
+                                    <td><span class="badge bg-secondary bg-opacity-25">{{ fnd.confidence }}</span></td>
+                                </tr>
+                            {% else %}
+                                <tr>
+                                    <td colspan="6" class="text-center py-4 text-muted">No suspicious findings generated for this case.</td>
+                                </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Custody Pane -->
+    <div class="tab-pane fade" id="custody-pane" role="tabpanel">
+        <div class="card card-soc">
+            <div class="card-body p-0">
+                <div class="table-responsive">
+                    <table class="table table-soc mb-0">
+                        <thead>
+                            <tr>
+                                <th>Timestamp</th>
+                                <th>Action</th>
+                                <th>Investigator</th>
+                                <th>Description</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% for c in case.custody_events %}
+                                <tr>
+                                    <td><small class="text-muted">{{ c.timestamp.strftime('%Y-%m-%d %H:%M:%S UTC') if c.timestamp else 'N/A' }}</small></td>
+                                    <td><span class="badge bg-info bg-opacity-25 text-info">{{ c.event_action }}</span></td>
+                                    <td>{{ c.investigator }}</td>
+                                    <td>{{ c.description }}</td>
+                                </tr>
+                            {% else %}
+                                <tr>
+                                    <td colspan="4" class="text-center py-4 text-muted">No custody log entries recorded.</td>
+                                </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Upload Modal -->
+<div class="modal fade modal-soc" id="uploadModal" tabindex="-1" aria-hidden="true">
+    <div class="modal-dialog modal-dialog-centered">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title"><i class="bi bi-upload text-info me-2"></i>Ingest Forensic Evidence</h5>
+                <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <form action="{{ url_for('evidence.upload_evidence') }}" method="POST" enctype="multipart/form-data">
+                <div class="modal-body">
+                    <input type="hidden" name="case_id" value="{{ case.id }}">
+                    
+                    <div class="mb-3">
+                        <label for="evidence_files" class="form-label fw-semibold">Select Evidence Files <span class="text-danger">*</span></label>
+                        <input type="file" class="form-control form-control-soc" id="evidence_files" name="evidence_files" multiple required>
+                        <div class="form-text text-muted">Supports raw logs, sqlite browser DBs, document files, images, archives.</div>
+                    </div>
+
+                    <div class="mb-3">
+                        <label for="investigator" class="form-label fw-semibold">Investigator Name</label>
+                        <input type="text" class="form-control form-control-soc" name="investigator" value="{{ case.investigator }}">
+                    </div>
+
+                    <div class="mb-3">
+                        <label for="description" class="form-label fw-semibold">Acquisition Description</label>
+                        <textarea class="form-control form-control-soc" name="description" rows="2" placeholder="Source workstation, drive serial number, or acquisition context..."></textarea>
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-outline-secondary" data-bs-dismiss="modal">Cancel</button>
+                    <button type="submit" class="btn btn-info fw-semibold"><i class="bi bi-shield-lock me-1"></i> Upload & Hash Evidence</button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+{% endblock %}
